@@ -2,6 +2,8 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 const cors = require("cors");
+
+
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -9,8 +11,8 @@ app.use(cors());
 app.use(express.json());
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://DB-USER:<password>@cluster0.ijwgr8d.mongodb.net/?retryWrites=true&w=majority";
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ijwgr8d.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -30,6 +32,37 @@ async function run() {
 
 
 
+// all properties
+app.get("/property", async (req, res) => {
+  const page = parseInt(req.query.page);
+  const size = parseInt(req.query.size);
+  const cursor = propertyCollection.find();
+  const result = await cursor
+    .skip(page * size)
+    .limit(size)
+    .toArray();
+  res.send(result);
+});
+app.get("/propertyCount", async (req, res) => {
+  const count = await propertyCollection.estimatedDocumentCount();
+  res.send({ count });
+});
+
+app.get("/property/:id", async (req, res) => {
+  const id = req.params.id;
+  const query = {_id: new ObjectId(id) };
+  const result = await propertyCollection.findOne(query);
+  res.send(result);
+});
+
+
+
+
+
+
+
+
+
 
 
     // Send a ping to confirm a successful connection
@@ -41,3 +74,11 @@ async function run() {
   }
 }
 run().catch(console.dir);
+
+app.get("/", (req, res) => {
+  res.send("Project is setting");
+});
+
+app.listen(port, () => {
+  console.log(`Mi casa is setting on post ${port}`);
+});
