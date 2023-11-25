@@ -29,6 +29,7 @@ async function run() {
     // await client.connect();
 
     const propertyCollection = client.db("miCasaDB").collection("properties");
+    const reviewCollection = client.db("miCasaDB").collection("review");
 
 
 
@@ -50,17 +51,30 @@ app.get("/propertyCount", async (req, res) => {
 
 app.get("/property/:id", async (req, res) => {
   const id = req.params.id;
-  const query = {_id: new ObjectId(id) };
+  const query = { _id: new ObjectId(id) };
   const result = await propertyCollection.findOne(query);
   res.send(result);
 });
 
 
+// review
+app.post("/review", async (req, res) => {
+  const propertyItem = req.body;
+  const result = await reviewCollection.insertOne(propertyItem);
+  res.send(result);
+});
 
+app.get("/review", async (req, res) => {
+  const result = await reviewCollection.find().toArray();
+  res.send(result);
+});
 
-
-
-
+app.get("/review/:title", async (req, res) => {
+  const title = req.params.title;
+  const query = { title: title };
+  const result = await reviewCollection.find(query).toArray();
+  res.send(result);
+});
 
 
 
