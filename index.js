@@ -30,6 +30,7 @@ async function run() {
 
     const propertyCollection = client.db("miCasaDB").collection("properties");
     const reviewCollection = client.db("miCasaDB").collection("review");
+    const wishesCollection = client.db("miCasaDB").collection("wishes");
 
 
 
@@ -76,7 +77,33 @@ app.get("/review/:title", async (req, res) => {
   res.send(result);
 });
 
+// add to wishlist
+app.post("/wishList", async (req, res) => {
+  const propertyWish = req.body;
+  const result = await wishesCollection.insertOne(propertyWish);
+  res.send(result);
+});
 
+app.get("/wishList", async (req, res) => {
+  const email = req.query.email;
+  const query = { email: email };
+  const result = await wishesCollection.find(query).toArray();
+  res.send(result);
+});
+
+app.get("/wishList/:id", async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) };
+  const result = await wishesCollection.findOne(query);
+  res.send(result);
+});
+
+app.delete("/:id", async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) };
+  const result = await wishesCollection.deleteOne(query);
+  res.send(result);
+});
 
 
     // Send a ping to confirm a successful connection
