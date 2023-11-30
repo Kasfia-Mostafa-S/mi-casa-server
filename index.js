@@ -62,11 +62,23 @@ async function run() {
       });
     };
 
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      next();
+    };
+
     // user related
-    app.get("/users", async (req, res) => {
+    app.get("/users",verifyToken, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
+
 
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -87,7 +99,7 @@ async function run() {
     });
 
     // admin selection
-    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+    app.get("/users/admin/:email", verifyAdmin,verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: "Forbidden access" });
@@ -101,7 +113,7 @@ async function run() {
       res.send({ admin });
     });
 
-    app.patch("/users/admin/:id", async (req, res) => {
+    app.patch("/users/admin/:id",async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
