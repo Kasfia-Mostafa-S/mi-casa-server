@@ -3,7 +3,7 @@ const app = express();
 require("dotenv").config();
 var jwt = require("jsonwebtoken");
 const cors = require("cors");
-// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -31,8 +31,11 @@ async function run() {
     const propertyCollection = client.db("miCasaDB").collection("properties");
     const reviewCollection = client.db("miCasaDB").collection("review");
     const wishesCollection = client.db("miCasaDB").collection("wishes");
-    const newPropertyCollection = client.db("miCasaDB").collection("newProperty");
+    const newPropertyCollection = client
+      .db("miCasaDB")
+      .collection("newProperty");
     const offeredCollection = client.db("miCasaDB").collection("offered");
+    const paymentCollection = client.db("miCasaDB").collection("payments");
 
     // jwt api
     app.post("/jwt", async (req, res) => {
@@ -180,6 +183,13 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/property/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await propertyCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // review
     app.post("/review", async (req, res) => {
       const propertyItem = req.body;
@@ -198,13 +208,6 @@ async function run() {
       const result = await reviewCollection.find(query).toArray();
       res.send(result);
     });
-
-    // app.get("/review", async (req, res) => {
-    //   const email = req.query.email;
-    //   const query = { email: email };
-    //   const result = await reviewCollection.find(query).toArray();
-    //   res.send(result);
-    // });
 
     app.get("/review/:email", async (req, res) => {
       const email = req.params.email;
@@ -260,10 +263,8 @@ async function run() {
       res.send(result);
     });
 
-
-
     // offered and bought
-      app.post("/offered", async (req, res) => {
+    app.post("/offered", async (req, res) => {
       const newAddProperty = req.body;
       const result = await offeredCollection.insertOne(newAddProperty);
       res.send(result);
@@ -271,6 +272,13 @@ async function run() {
 
     app.get("/offered", async (req, res) => {
       const result = await offeredCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/offered/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await offeredCollection.findOne(query);
       res.send(result);
     });
 
@@ -286,12 +294,49 @@ async function run() {
       res.send(result);
     });
 
+    // stripe
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, "amount inside the payment");
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    app.get("/payments/:email", verifyToken, async (req, res) => {
+      const query = { email: req.params.email };
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      const result = await paymentCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+      console.log("Payment info", payment);
+
+      const query = {
+        _id: {
+          $in: payment.cartIds.map((id) => new ObjectId(id)),
+        },
+      };
+      const deleteResult = await cartCollection.deleteMany(query);
+      res.send({ paymentResult, deleteResult });
+    });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error0
     // await client.close();
